@@ -9,6 +9,7 @@ import {
   Layers,
   Flame,
   Info,
+  Power,
 } from 'lucide-react';
 
 export const ControlPanel: React.FC = () => {
@@ -22,6 +23,8 @@ export const ControlPanel: React.FC = () => {
     guidedDemo,
     startGuidedDemo,
     stopGuidedDemo,
+    isAutoMaintenanceEnabled,
+    toggleAutoMaintenance,
   } = useSimulationStore();
 
   const [customWater, setCustomWater] = useState<number>(50);
@@ -47,22 +50,49 @@ export const ControlPanel: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => { guidedDemo.isActive ? stopGuidedDemo() : startGuidedDemo(); }}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all shrink-0 ${
-            guidedDemo.isActive
-              ? 'bg-rose-500/15 border-rose-600/40 text-rose-300 animate-pulse'
-              : 'bg-emerald-500/10 border-emerald-600/30 text-emerald-300 hover:bg-emerald-500/20'
-          }`}
-          title="Skenario otomatis: encerkan PPM → trigger rekomendasi PWA → pulih"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          {guidedDemo.isActive ? 'Hentikan Demo' : 'Mode Demo Terpandu'}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={toggleAutoMaintenance}
+            disabled={guidedDemo.isActive}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              isAutoMaintenanceEnabled
+                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Menjaga volume dan PPM tetap pada rentang sehat"
+          >
+            <Power className={`w-3.5 h-3.5 ${isAutoMaintenanceEnabled ? 'animate-pulse' : ''}`} />
+            {isAutoMaintenanceEnabled ? 'Otomatis Aktif' : 'Perawatan Otomatis'}
+          </button>
+          <button
+            onClick={() => {
+              if (guidedDemo.isActive) {
+                stopGuidedDemo();
+              } else {
+                startGuidedDemo();
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
+              guidedDemo.isActive
+                ? 'bg-rose-500/15 border-rose-600/40 text-rose-300 animate-pulse'
+                : 'bg-emerald-500/10 border-emerald-600/30 text-emerald-300 hover:bg-emerald-500/20'
+            }`}
+            title="Skenario otomatis: encerkan PPM → trigger rekomendasi PWA → pulih"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {guidedDemo.isActive ? 'Hentikan Demo' : 'Mode Demo Terpandu'}
+          </button>
+        </div>
       </div>
 
       {/* ── Body ── */}
       <div className="p-5 flex flex-col gap-4">
+        {isAutoMaintenanceEnabled && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-600/30 text-emerald-200 text-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Perawatan otomatis aktif: isi air saat volume &lt; 950L, tambah nutrisi saat PPM &lt; 400, dan encerkan saat PPM &gt; 600.
+          </div>
+        )}
         {/* Grid: Tambah Air | Tambah Nutrisi */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Tambah Air */}

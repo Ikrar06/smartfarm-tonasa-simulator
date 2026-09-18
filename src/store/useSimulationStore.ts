@@ -36,6 +36,7 @@ interface SimulationStore {
   // Kontrol Eksekusi Simulasi
   isRunning: boolean;
   speedMultiplier: number; // 1x sampai 10x
+  isAutoMaintenanceEnabled: boolean;
   accelerateSendInterval: boolean; // Respons feedback user: percepat interval kirim jika speed dinaikkan
   baseSendIntervalSec: number;
   countdownSec: number;
@@ -59,6 +60,7 @@ interface SimulationStore {
   resetSimulation: () => Promise<void>;
   toggleRunning: () => void;
   setSpeedMultiplier: (speed: number) => void;
+  toggleAutoMaintenance: () => void;
   setAccelerateSendInterval: (accelerate: boolean) => void;
   setBaseSendInterval: (sec: number) => void;
   sendReadingNow: () => Promise<void>;
@@ -81,6 +83,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   isRunning: true,
   speedMultiplier: 1,
+  isAutoMaintenanceEnabled: false,
   accelerateSendInterval: true, // Default ON sesuai masukan user agar saat expo bisa kirim cepat
   baseSendIntervalSec: DEFAULT_SEND_INTERVAL_SEC,
   countdownSec: DEFAULT_SEND_INTERVAL_SEC,
@@ -103,7 +106,13 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     const state = get();
     if (!state.isRunning) return;
 
-    const { speedMultiplier, accelerateSendInterval, baseSendIntervalSec, guidedDemo } = state;
+    const {
+      speedMultiplier,
+      accelerateSendInterval,
+      baseSendIntervalSec,
+      guidedDemo,
+      isAutoMaintenanceEnabled,
+    } = state;
     const effectiveDt = dtSeconds * speedMultiplier;
 
     // 1. Pelarutan bertahap nutrisi pending ke larutan (dissolution)
@@ -192,6 +201,25 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       countdownSec: Math.max(0, Math.round(newCountdown * 10) / 10),
       guidedDemo: updatedGuidedDemo,
     });
+
+    // Targetkan titik tengah rentang sehat (500 PPM) agar tindakan tidak berulang tiap tick.
+    if (isAutoMaintenanceEnabled && !guidedDemo.isActive) {
+      const targetPpm = DEFAULT_TARGET_PPM;
+      const targetMass = (targetPpm * newVolumeAir) / 1000;
+
+      if (newVolumeAir < 950) {
+        get().addWater(Math.round((DEFAULT_VOLUME_AIR_L - newVolumeAir) * 10) / 10);
+      } else if (newPpm < 400 && newMassaPending === 0) {
+        const nutrientNeeded = Math.max(10, targetMass - newMassaNutrisi);
+        get().addNutrient(Math.round(nutrientNeeded * 10) / 10);
+      } else if (newPpm > 600) {
+        const targetVolume = (newMassaNutrisi / targetPpm) * 1000;
+        const waterNeeded = targetVolume - newVolumeAir;
+        if (waterNeeded >= 5) {
+          get().addWater(Math.round(waterNeeded * 10) / 10);
+        }
+      }
+    }
   },
 
   addWater: async (amountL: number) => {
@@ -333,6 +361,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     });
   },
 
+  toggleAutoMaintenance: () => {
+    set(s => ({ isAutoMaintenanceEnabled: !s.isAutoMaintenanceEnabled }));
+  },
+
   setAccelerateSendInterval: (accelerate: boolean) => {
     set({ accelerateSendInterval: accelerate });
   },
@@ -401,6 +433,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     const waterNeeded = Math.max(15, targetVolume - state.volume_air);
 
     set({
+      isAutoMaintenanceEnabled: false,
       guidedDemo: {
         isActive: true,
         step: 'lowering',
