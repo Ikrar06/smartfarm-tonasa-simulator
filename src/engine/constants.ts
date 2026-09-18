@@ -26,6 +26,7 @@ export const NOISE_SIGMA = 1.8;              // Variasi gaussian agar std != 0
 
 // Nilai Default Sistem
 export const DEFAULT_VOLUME_AIR_L = 1000.0;   // Liter (Tangki tandon skala real greenhouse)
+export const TANK_CAPACITY_L = DEFAULT_VOLUME_AIR_L;
 export const DEFAULT_SUHU_AIR_C = 26.0;        // °C
 export const DEFAULT_TARGET_PPM = 500.0;       // PPM titik tengah sehat (400-600)
 export const DEFAULT_SEND_INTERVAL_SEC = 60;   // 60 detik pada kecepatan 1x (skala real-time)

@@ -4,6 +4,7 @@ import {
   DEFAULT_SUHU_AIR_C,
   DEFAULT_TARGET_PPM,
   DEFAULT_SEND_INTERVAL_SEC,
+  TANK_CAPACITY_L,
 } from '../engine/constants';
 import {
   calculatePpm,
@@ -207,7 +208,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       const targetPpm = DEFAULT_TARGET_PPM;
       const targetMass = (targetPpm * newVolumeAir) / 1000;
 
-      if (newVolumeAir < 950) {
+      if (newVolumeAir < TANK_CAPACITY_L - 50) {
         get().addWater(Math.round((DEFAULT_VOLUME_AIR_L - newVolumeAir) * 10) / 10);
       } else if (newPpm < 400 && newMassaPending === 0) {
         const nutrientNeeded = Math.max(10, targetMass - newMassaNutrisi);
@@ -215,7 +216,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       } else if (newPpm > 600) {
         const targetVolume = (newMassaNutrisi / targetPpm) * 1000;
         const waterNeeded = targetVolume - newVolumeAir;
-        if (waterNeeded >= 5) {
+        if (waterNeeded >= 5 && newVolumeAir + waterNeeded <= TANK_CAPACITY_L) {
           get().addWater(Math.round(waterNeeded * 10) / 10);
         }
       }
@@ -224,7 +225,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   addWater: async (amountL: number) => {
     const state = get();
-    const newVolume = state.volume_air + amountL;
+    const actualAmount = Math.max(0, Math.min(amountL, TANK_CAPACITY_L - state.volume_air));
+    if (actualAmount === 0) return;
+
+    const newVolume = state.volume_air + actualAmount;
     const newPpm = calculatePpm(state.massa_nutrisi, newVolume);
     const newTdsRaw = calculateTdsRaw(newPpm);
 
@@ -240,14 +244,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
     const result = await sendEvent({
       jenis: 'tambah_air',
-      catatan: `Simulasi: Tambah ${amountL}L air (Dilusi ke ${Math.round(newPpm)} PPM)`,
+      catatan: `Simulasi: Tambah ${actualAmount}L air (Dilusi ke ${Math.round(newPpm)} PPM)`,
     });
 
     const newLogItem: TransmissionLogItem = {
       id: logId,
       timestamp,
       type: 'event',
-      summary: `Tambah ${amountL}L Air -> PPM turun ke ${Math.round(newPpm)}`,
+      summary: `Tambah ${actualAmount}L Air -> PPM turun ke ${Math.round(newPpm)}`,
       eventKind: 'tambah_air',
       status: result.success ? 'success' : 'error',
       errorMessage: result.error,
@@ -427,11 +431,11 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   startGuidedDemo: () => {
     const state = get();
     const demoTargetPpm = 350;
-    const maxTankVolume = 1200;
+    const maxTankVolume = TANK_CAPACITY_L;
     const targetMass = (demoTargetPpm * maxTankVolume) / 1000;
 
-    // Menambah air saja dari 1000L/500PPM membutuhkan ~1429L. Agar tetap
-    // muat, sebagian larutan lama dikuras lalu bak diisi hingga 1200L.
+    // Ganti sebagian larutan lama dengan air bersih agar volume tetap 1000L,
+    // sesuai asumsi dosis rekomendasi dari worker AI dashboard.
     const currentConcentration = state.volume_air > 0
       ? state.massa_nutrisi / state.volume_air
       : 0;

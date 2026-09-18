@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSimulationStore } from '../store/useSimulationStore';
-import { PPM_TARGET_MIN, PPM_TARGET_MAX } from '../engine/constants';
+import { PPM_TARGET_MIN, PPM_TARGET_MAX, TANK_CAPACITY_L } from '../engine/constants';
 import { Droplets, Sparkles, Thermometer, Waves } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -11,10 +11,10 @@ export const TankVisual: React.FC = () => {
   const ppm = useSimulationStore(state => state.ppm);
   const suhuAir = useSimulationStore(state => state.suhu_air);
 
-  // Skala, garis ukur, dan tinggi cairan harus memakai kapasitas yang sama.
-  const MAX_CAPACITY_L = 1200;
+  // Skala, garis ukur, dan tinggi cairan memakai kapasitas bak yang sama.
+  const MAX_CAPACITY_L = TANK_CAPACITY_L;
   const fillPercentage = Math.min(100, Math.max(0, (volumeAir / MAX_CAPACITY_L) * 100));
-  const scaleMarks = [1200, 1000, 800, 600, 400, 200, 0];
+  const scaleMarks = [1000, 800, 600, 400, 200, 0];
 
   const solutionTheme = useMemo(() => {
     if (ppm < PPM_TARGET_MIN) {
@@ -68,7 +68,7 @@ export const TankVisual: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-800 text-emerald-400 border border-slate-700">
-              Kapasitas 1200L
+              Kapasitas 1000L
             </span>
             <div className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border ${solutionTheme.badgeBg} flex items-center gap-1.5`}>
               <span
