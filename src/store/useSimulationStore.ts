@@ -425,25 +425,43 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   },
 
   startGuidedDemo: () => {
-    // Jalankan skenario:
-    // 1. Turunkan PPM di bawah 400 dengan menambahkan air banyak (dilusi drastis)
     const state = get();
-    // Tambah air sampai PPM sekitar ~350 PPM
-    const targetVolume = (state.massa_nutrisi / 350) * 1000;
-    const waterNeeded = Math.max(15, targetVolume - state.volume_air);
+    const demoTargetPpm = 350;
+    const maxTankVolume = 1200;
+    const targetMass = (demoTargetPpm * maxTankVolume) / 1000;
+
+    // Menambah air saja dari 1000L/500PPM membutuhkan ~1429L. Agar tetap
+    // muat, sebagian larutan lama dikuras lalu bak diisi hingga 1200L.
+    const currentConcentration = state.volume_air > 0
+      ? state.massa_nutrisi / state.volume_air
+      : 0;
+    const massToRemove = Math.max(0, state.massa_nutrisi - targetMass);
+    const drainedVolume = currentConcentration > 0
+      ? Math.min(state.volume_air, massToRemove / currentConcentration)
+      : 0;
+    const volumeAfterDrain = Math.max(0, state.volume_air - drainedVolume);
+    const waterAdded = Math.max(0, maxTankVolume - volumeAfterDrain);
+    const finalMass = Math.min(state.massa_nutrisi, targetMass);
+    const finalPpm = calculatePpm(finalMass, maxTankVolume);
 
     set({
       isAutoMaintenanceEnabled: false,
+      volume_air: maxTankVolume,
+      massa_nutrisi: Math.round(finalMass * 100) / 100,
+      massa_pending: 0,
+      ppm: Math.round(finalPpm * 10) / 10,
+      tds_raw: calculateTdsRaw(finalPpm),
+      hasEventInCurrentCycle: true,
       guidedDemo: {
         isActive: true,
         step: 'lowering',
-        message: `🌊 Mengencerkan larutan (menambahkan ${Math.round(waterNeeded)}L air) agar PPM turun < 400...`,
+        message: `Menguras ${Math.round(drainedVolume)}L larutan lalu menambah ${Math.round(waterAdded)}L air bersih agar PPM turun < 400...`,
         stepSecondsRemaining: 15,
       },
     });
 
-    // Tambah air
-    get().addWater(Math.round(waterNeeded));
+    // Kirim pembacaan kondisi kritis segera ke dashboard.
+    setTimeout(() => get().sendReadingNow(), 100);
   },
 
   stopGuidedDemo: () => {
